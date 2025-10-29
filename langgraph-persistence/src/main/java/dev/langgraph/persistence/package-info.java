@@ -1,5 +1,5 @@
 /**
- * Persistence layer for LangGraph state and checkpoints.
- * This package provides interfaces and implementations for persisting graph state.
+ * Persistence layer for LangGraph providing checkpoint management, state serialization,
+ * and resumable execution with support for multiple storage backends.
  */
 package dev.langgraph.persistence;

@@ -1,0 +1,14 @@
+package com.langgraph.ui.model;
+
+public enum EventType {
+    EXECUTION_STARTED,
+    EXECUTION_COMPLETED,
+    EXECUTION_FAILED,
+    NODE_STARTED,
+    NODE_COMPLETED,
+    NODE_FAILED,
+    APPROVAL_REQUESTED,
+    APPROVAL_GRANTED,
+    APPROVAL_DENIED,
+    LOG_MESSAGE
+}

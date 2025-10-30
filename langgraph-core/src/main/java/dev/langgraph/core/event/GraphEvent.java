@@ -14,7 +14,12 @@ public sealed interface GraphEvent permits
     GraphEvent.StateChanged,
     GraphEvent.GraphExecutionStarted,
     GraphEvent.GraphExecutionCompleted,
-    GraphEvent.GraphExecutionFailed {
+    GraphEvent.GraphExecutionFailed,
+    GraphEvent.HumanTaskCreated,
+    GraphEvent.HumanTaskCompleted,
+    GraphEvent.HumanTaskExpired,
+    GraphEvent.HumanTaskCancelled,
+    GraphEvent.HumanTaskEscalated {
 
     Instant timestamp();
     String executionId();
@@ -135,6 +140,88 @@ public sealed interface GraphEvent permits
             Objects.requireNonNull(graphId);
             Objects.requireNonNull(timestamp);
             Objects.requireNonNull(error);
+            metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
+        }
+    }
+
+    record HumanTaskCreated(
+            String executionId,
+            String taskId,
+            String nodeId,
+            String taskType,
+            Instant timestamp,
+            Map<String, Object> metadata
+    ) implements GraphEvent {
+        public HumanTaskCreated {
+            Objects.requireNonNull(executionId);
+            Objects.requireNonNull(taskId);
+            Objects.requireNonNull(nodeId);
+            Objects.requireNonNull(taskType);
+            Objects.requireNonNull(timestamp);
+            metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
+        }
+    }
+
+    record HumanTaskCompleted(
+            String executionId,
+            String taskId,
+            String nodeId,
+            Instant timestamp,
+            Map<String, Object> metadata
+    ) implements GraphEvent {
+        public HumanTaskCompleted {
+            Objects.requireNonNull(executionId);
+            Objects.requireNonNull(taskId);
+            Objects.requireNonNull(nodeId);
+            Objects.requireNonNull(timestamp);
+            metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
+        }
+    }
+
+    record HumanTaskExpired(
+            String executionId,
+            String taskId,
+            String nodeId,
+            Instant timestamp,
+            Map<String, Object> metadata
+    ) implements GraphEvent {
+        public HumanTaskExpired {
+            Objects.requireNonNull(executionId);
+            Objects.requireNonNull(taskId);
+            Objects.requireNonNull(nodeId);
+            Objects.requireNonNull(timestamp);
+            metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
+        }
+    }
+
+    record HumanTaskCancelled(
+            String executionId,
+            String taskId,
+            String nodeId,
+            Instant timestamp,
+            Map<String, Object> metadata
+    ) implements GraphEvent {
+        public HumanTaskCancelled {
+            Objects.requireNonNull(executionId);
+            Objects.requireNonNull(taskId);
+            Objects.requireNonNull(nodeId);
+            Objects.requireNonNull(timestamp);
+            metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
+        }
+    }
+
+    record HumanTaskEscalated(
+            String executionId,
+            String taskId,
+            String nodeId,
+            Instant timestamp,
+            Map<String, Object> metadata
+    ) implements GraphEvent {
+        public HumanTaskEscalated {
+            Objects.requireNonNull(executionId);
+            Objects.requireNonNull(taskId);
+            Objects.requireNonNull(nodeId);
+            Objects.requireNonNull(timestamp);
             metadata = metadata == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(metadata));
         }
     }

@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: langgraph-ui
+  thymeleaf:
+    cache: false
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.langgraph: INFO
+    org.springframework.web: INFO
+    org.springframework.messaging: INFO

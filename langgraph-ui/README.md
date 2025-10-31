@@ -126,18 +126,40 @@ The application includes three sample graphs that are automatically registered o
 2. Select it to view real-time details:
    - **Graph Visualization**: Node colors indicate status
      - Blue: Pending
-     - Yellow: Running  
+     - Yellow: Running (with pulsing animation)
      - Green: Completed
      - Red: Failed
+   - **Info Bar**: Shows execution status, current node, and start time
    - **Events Tab**: Timeline of execution events
    - **State Tab**: Current execution state as JSON
    - **Tasks Tab**: Pending human approval tasks
+
+### 3.1 Interactive Graph Features
+- **Running Node Animation**: Nodes currently executing have a pulsing border animation
+- **Click on Nodes**: View node details including:
+  - Node ID, name, and status
+  - Node metadata
+  - Current execution state
+- **Click on Edges**: View edge details including:
+  - Edge ID, type, source, and target
+  - Edge metadata
+  - Current execution state
 
 ### 4. Handle Human Approval Tasks
 1. If the graph has approval nodes, tasks appear in the Tasks tab
 2. View task details including prompt and context
 3. Click **"Approve"** or **"Reject"** to respond
 4. The execution continues automatically after approval
+
+### 5. View Execution History
+1. Click on the **"History"** tab to view past executions
+2. History includes up to 50 completed or failed executions
+3. Each entry shows:
+   - Execution ID and status
+   - Graph ID
+   - Start time
+4. Click any history entry to view its details
+5. Use the **"Clear"** button to remove all history
 
 ### Starting an Execution via REST API
 ```bash
@@ -226,13 +248,27 @@ logging:
 The graph visualization uses Cytoscape.js with the following features:
 - **Node Colors** indicate status:
   - Blue: Pending
-  - Yellow: Running
+  - Yellow: Running (with animated pulsing border)
   - Green: Completed
   - Red: Failed
   - Gray: Skipped
+- **Interactive Elements**:
+  - Click on any node to view its details and current state
+  - Click on any edge to view its type, metadata, and current state
+  - Running nodes have special animation effects (border pulsing)
 - **Pan/Zoom** for navigation
 - **Breadth-first layout** for optimal viewing
 - **Automatic fitting** on load
+- **Real-time Updates**: Node status updates automatically via WebSocket
+
+## Execution History
+
+The UI automatically tracks execution history using browser LocalStorage:
+- **Automatic Tracking**: Completed and failed executions are saved automatically
+- **Persistent**: History survives browser restarts
+- **Capacity**: Stores up to 50 most recent executions
+- **Manual Management**: Clear history via the "Clear" button
+- **Quick Access**: Click any history entry to load execution details
 
 ## Browser Compatibility
 

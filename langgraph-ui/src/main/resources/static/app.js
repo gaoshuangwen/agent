@@ -4,7 +4,7 @@ const API_BASE = window.location.origin + '/api';
 const WS_BASE = `ws://${window.location.host}/ws`;
 
 function App() {
-    const [view, setView] = useState('graphs'); // 'graphs' or 'executions'
+    const [view, setView] = useState('graphs');
     const [graphs, setGraphs] = useState([]);
     const [selectedGraph, setSelectedGraph] = useState(null);
     const [executions, setExecutions] = useState([]);
@@ -15,7 +15,10 @@ function App() {
     const [pendingTasks, setPendingTasks] = useState([]);
     const [error, setError] = useState(null);
     const [showStartDialog, setShowStartDialog] = useState(false);
+    const [showDetailDialog, setShowDetailDialog] = useState(false);
+    const [selectedElement, setSelectedElement] = useState(null);
     const [initialState, setInitialState] = useState('{}');
+    const [executionHistory, setExecutionHistory] = useState([]);
     const cyRef = useRef(null);
     const wsRef = useRef(null);
 
@@ -23,6 +26,7 @@ function App() {
         fetchGraphs();
         fetchExecutions();
         fetchPendingTasks();
+        loadExecutionHistory();
         const interval = setInterval(() => {
             fetchExecutions();
             fetchPendingTasks();
@@ -66,6 +70,28 @@ function App() {
         }
     }, [graphTopology, selectedGraph]);
 
+    const loadExecutionHistory = () => {
+        const history = localStorage.getItem('executionHistory');
+        if (history) {
+            setExecutionHistory(JSON.parse(history));
+        }
+    };
+
+    const saveExecutionToHistory = (execution) => {
+        const history = JSON.parse(localStorage.getItem('executionHistory') || '[]');
+        const newEntry = {
+            executionId: execution.executionId,
+            graphId: execution.graphId,
+            status: execution.status,
+            startTime: execution.startTime,
+            endTime: execution.endTime
+        };
+        const filtered = history.filter(h => h.executionId !== execution.executionId);
+        const updated = [newEntry, ...filtered].slice(0, 50);
+        localStorage.setItem('executionHistory', JSON.stringify(updated));
+        setExecutionHistory(updated);
+    };
+
     const fetchGraphs = async () => {
         try {
             const response = await fetch(`${API_BASE}/graphs`);
@@ -81,6 +107,11 @@ function App() {
             const response = await fetch(`${API_BASE}/executions`);
             const data = await response.json();
             setExecutions(data);
+            data.forEach(exec => {
+                if (exec.status === 'COMPLETED' || exec.status === 'FAILED') {
+                    saveExecutionToHistory(exec);
+                }
+            });
         } catch (err) {
             console.error('Error fetching executions:', err);
         }
@@ -91,6 +122,9 @@ function App() {
             const response = await fetch(`${API_BASE}/executions/${executionId}`);
             const data = await response.json();
             setExecutionDetails(data);
+            if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                saveExecutionToHistory(data);
+            }
         } catch (err) {
             console.error('Error fetching execution details:', err);
         }
@@ -192,7 +226,8 @@ function App() {
                 data: {
                     id: node.id,
                     label: node.name,
-                    status: status
+                    status: status,
+                    nodeData: node
                 }
             });
         });
@@ -203,7 +238,8 @@ function App() {
                     id: edge.id,
                     source: edge.source,
                     target: edge.target,
-                    label: edge.type
+                    label: edge.type,
+                    edgeData: edge
                 }
             });
         });
@@ -238,7 +274,24 @@ function App() {
                         'width': '80px',
                         'height': '80px',
                         'border-width': '3px',
-                        'border-color': '#fff'
+                        'border-color': '#fff',
+                        'transition-property': 'background-color, border-color, border-width',
+                        'transition-duration': '0.3s'
+                    }
+                },
+                {
+                    selector: 'node[status="RUNNING"]',
+                    style: {
+                        'border-width': '6px',
+                        'border-color': '#ff6f00',
+                        'box-shadow': '0 0 20px #ffc107'
+                    }
+                },
+                {
+                    selector: 'node:active',
+                    style: {
+                        'overlay-opacity': 0.2,
+                        'overlay-color': '#1976d2'
                     }
                 },
                 {
@@ -254,6 +307,14 @@ function App() {
                         'text-rotation': 'autorotate',
                         'text-margin-y': -10
                     }
+                },
+                {
+                    selector: 'edge:active',
+                    style: {
+                        'line-color': '#1976d2',
+                        'target-arrow-color': '#1976d2',
+                        'width': 3
+                    }
                 }
             ],
             layout: {
@@ -263,6 +324,66 @@ function App() {
                 spacingFactor: 1.5
             }
         });
+
+        // Add click handlers
+        cy.on('tap', 'node', function(evt) {
+            const node = evt.target;
+            const nodeId = node.data('id');
+            const nodeData = node.data('nodeData');
+            const status = node.data('status');
+            
+            setSelectedElement({
+                type: 'node',
+                id: nodeId,
+                name: nodeData.name,
+                status: status,
+                metadata: nodeData.metadata,
+                state: executionDetails ? executionDetails.state : null
+            });
+            setShowDetailDialog(true);
+        });
+
+        cy.on('tap', 'edge', function(evt) {
+            const edge = evt.target;
+            const edgeData = edge.data('edgeData');
+            
+            setSelectedElement({
+                type: 'edge',
+                id: edge.data('id'),
+                source: edge.data('source'),
+                target: edge.data('target'),
+                edgeType: edgeData.type,
+                metadata: edgeData.metadata,
+                state: executionDetails ? executionDetails.state : null
+            });
+            setShowDetailDialog(true);
+        });
+
+        // Animate running nodes
+        const animateRunningNodes = () => {
+            cy.nodes('[status="RUNNING"]').animate({
+                style: {
+                    'border-width': '8px'
+                },
+                duration: 500,
+                easing: 'ease-in-out-cubic'
+            }).animate({
+                style: {
+                    'border-width': '4px'
+                },
+                duration: 500,
+                easing: 'ease-in-out-cubic',
+                complete: () => {
+                    if (cy.nodes('[status="RUNNING"]').length > 0) {
+                        setTimeout(animateRunningNodes, 100);
+                    }
+                }
+            });
+        };
+
+        if (cy.nodes('[status="RUNNING"]').length > 0) {
+            animateRunningNodes();
+        }
 
         cy.fit(50);
         cyRef.current = cy;
@@ -294,6 +415,16 @@ function App() {
         }
     };
 
+    const loadHistoryExecution = (executionId) => {
+        setView('executions');
+        setSelectedExecution(executionId);
+    };
+
+    const clearHistory = () => {
+        localStorage.removeItem('executionHistory');
+        setExecutionHistory([]);
+    };
+
     return (
         <div className="app-container">
             <div className="header">
@@ -310,6 +441,12 @@ function App() {
                         onClick={() => setView('executions')}
                     >
                         Executions ({executions.length})
+                    </button>
+                    <button 
+                        className={`header-tab ${view === 'history' ? 'active' : ''}`}
+                        onClick={() => setView('history')}
+                    >
+                        History ({executionHistory.length})
                     </button>
                 </div>
             </div>
@@ -347,6 +484,41 @@ function App() {
                                 </ul>
                             )}
                         </>
+                    ) : view === 'history' ? (
+                        <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h2>Execution History</h2>
+                                {executionHistory.length > 0 && (
+                                    <button className="btn btn-secondary btn-small" onClick={clearHistory}>
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
+                            {executionHistory.length === 0 ? (
+                                <div className="empty-state">No execution history</div>
+                            ) : (
+                                <ul className="execution-list">
+                                    {executionHistory.map(exec => (
+                                        <li
+                                            key={exec.executionId}
+                                            className="execution-item"
+                                            onClick={() => loadHistoryExecution(exec.executionId)}
+                                        >
+                                            <div>
+                                                {exec.executionId.substring(0, 8)}...
+                                                <span className={`status ${exec.status}`}>{exec.status}</span>
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                                                {exec.graphId}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                                                {new Date(exec.startTime).toLocaleString()}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
                     ) : (
                         <>
                             <h2>Executions</h2>
@@ -379,9 +551,31 @@ function App() {
                         <div className="empty-state">Select a graph to view its topology</div>
                     ) : view === 'executions' && !selectedExecution ? (
                         <div className="empty-state">Select an execution to view details</div>
+                    ) : view === 'history' ? (
+                        <div className="empty-state">Select an execution from history to view details</div>
                     ) : (
                         <>
                             <div className="graph-container">
+                                <div className="graph-info-bar">
+                                    {executionDetails && (
+                                        <>
+                                            <span className="info-item">
+                                                <strong>Status:</strong> 
+                                                <span className={`status ${executionDetails.status}`}>
+                                                    {executionDetails.status}
+                                                </span>
+                                            </span>
+                                            {executionDetails.currentNode && (
+                                                <span className="info-item">
+                                                    <strong>Current Node:</strong> {executionDetails.currentNode}
+                                                </span>
+                                            )}
+                                            <span className="info-item">
+                                                <strong>Started:</strong> {new Date(executionDetails.startTime).toLocaleString()}
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
                                 <div id="cy"></div>
                             </div>
                             {view === 'executions' && (
@@ -489,6 +683,81 @@ function App() {
                             </button>
                             <button className="btn btn-secondary" onClick={() => setShowStartDialog(false)}>
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showDetailDialog && selectedElement && (
+                <div className="modal-overlay" onClick={() => setShowDetailDialog(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h2>{selectedElement.type === 'node' ? 'Node Details' : 'Edge Details'}</h2>
+                        {selectedElement.type === 'node' ? (
+                            <div className="detail-content">
+                                <div className="detail-row">
+                                    <strong>ID:</strong> {selectedElement.id}
+                                </div>
+                                <div className="detail-row">
+                                    <strong>Name:</strong> {selectedElement.name}
+                                </div>
+                                <div className="detail-row">
+                                    <strong>Status:</strong> 
+                                    <span className={`status ${selectedElement.status}`}>
+                                        {selectedElement.status}
+                                    </span>
+                                </div>
+                                {selectedElement.metadata && Object.keys(selectedElement.metadata).length > 0 && (
+                                    <div className="detail-row">
+                                        <strong>Metadata:</strong>
+                                        <pre className="detail-json">
+                                            {JSON.stringify(selectedElement.metadata, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
+                                {selectedElement.state && (
+                                    <div className="detail-row">
+                                        <strong>Current State:</strong>
+                                        <pre className="detail-json">
+                                            {JSON.stringify(selectedElement.state, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="detail-content">
+                                <div className="detail-row">
+                                    <strong>ID:</strong> {selectedElement.id}
+                                </div>
+                                <div className="detail-row">
+                                    <strong>Type:</strong> {selectedElement.edgeType}
+                                </div>
+                                <div className="detail-row">
+                                    <strong>Source:</strong> {selectedElement.source}
+                                </div>
+                                <div className="detail-row">
+                                    <strong>Target:</strong> {selectedElement.target}
+                                </div>
+                                {selectedElement.metadata && Object.keys(selectedElement.metadata).length > 0 && (
+                                    <div className="detail-row">
+                                        <strong>Metadata:</strong>
+                                        <pre className="detail-json">
+                                            {JSON.stringify(selectedElement.metadata, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
+                                {selectedElement.state && (
+                                    <div className="detail-row">
+                                        <strong>Current State:</strong>
+                                        <pre className="detail-json">
+                                            {JSON.stringify(selectedElement.state, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <div className="modal-actions">
+                            <button className="btn btn-primary" onClick={() => setShowDetailDialog(false)}>
+                                Close
                             </button>
                         </div>
                     </div>

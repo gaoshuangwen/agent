@@ -101,9 +101,45 @@ The application includes three sample graphs that are automatically registered o
    - Requires human approval to proceed
    - Demonstrates human-in-the-loop patterns
 
-## Starting an Execution
+## Using the UI - Complete Workflow
 
-### Via REST API
+### 1. View Available Graphs
+1. Open http://localhost:8080/index.html in your browser
+2. Click on the **"Graphs"** tab in the header
+3. The left sidebar shows all registered graphs with:
+   - Graph name and ID
+   - Number of nodes and edges
+   - "Start Execution" button
+
+### 2. Start a New Execution
+1. In the Graphs view, select a graph from the list
+2. View its topology in the main visualization area
+3. Click **"Start Execution"** button on the graph item
+4. A dialog appears where you can:
+   - Review the selected graph name
+   - Enter initial state as JSON (e.g., `{"input": "test value"}`)
+   - Click **"Start"** to begin execution
+5. The UI automatically switches to the Executions view
+
+### 3. Monitor Execution
+1. The execution appears in the **"Executions"** tab
+2. Select it to view real-time details:
+   - **Graph Visualization**: Node colors indicate status
+     - Blue: Pending
+     - Yellow: Running  
+     - Green: Completed
+     - Red: Failed
+   - **Events Tab**: Timeline of execution events
+   - **State Tab**: Current execution state as JSON
+   - **Tasks Tab**: Pending human approval tasks
+
+### 4. Handle Human Approval Tasks
+1. If the graph has approval nodes, tasks appear in the Tasks tab
+2. View task details including prompt and context
+3. Click **"Approve"** or **"Reject"** to respond
+4. The execution continues automatically after approval
+
+### Starting an Execution via REST API
 ```bash
 curl -X POST http://localhost:8080/api/executions \
   -H "Content-Type: application/json" \
@@ -113,13 +149,6 @@ curl -X POST http://localhost:8080/api/executions \
     "metadata": {}
   }'
 ```
-
-### Via UI
-1. Open the UI in your browser
-2. The execution list will appear on the left sidebar
-3. Click on any execution to view its details
-4. The graph visualization will show node status in real-time
-5. View events, state, and tasks in the bottom panel
 
 ## Architecture
 

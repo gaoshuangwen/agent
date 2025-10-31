@@ -4,6 +4,9 @@ const API_BASE = window.location.origin + '/api';
 const WS_BASE = `ws://${window.location.host}/ws`;
 
 function App() {
+    const [view, setView] = useState('graphs'); // 'graphs' or 'executions'
+    const [graphs, setGraphs] = useState([]);
+    const [selectedGraph, setSelectedGraph] = useState(null);
     const [executions, setExecutions] = useState([]);
     const [selectedExecution, setSelectedExecution] = useState(null);
     const [executionDetails, setExecutionDetails] = useState(null);
@@ -11,10 +14,13 @@ function App() {
     const [activeTab, setActiveTab] = useState('events');
     const [pendingTasks, setPendingTasks] = useState([]);
     const [error, setError] = useState(null);
+    const [showStartDialog, setShowStartDialog] = useState(false);
+    const [initialState, setInitialState] = useState('{}');
     const cyRef = useRef(null);
     const wsRef = useRef(null);
 
     useEffect(() => {
+        fetchGraphs();
         fetchExecutions();
         fetchPendingTasks();
         const interval = setInterval(() => {
@@ -47,6 +53,28 @@ function App() {
             renderGraph(graphTopology, executionDetails.nodeStatuses);
         }
     }, [graphTopology, executionDetails]);
+
+    useEffect(() => {
+        if (selectedGraph) {
+            fetchGraphTopology(selectedGraph.graphId);
+        }
+    }, [selectedGraph]);
+
+    useEffect(() => {
+        if (graphTopology && !executionDetails && selectedGraph) {
+            renderGraph(graphTopology, {});
+        }
+    }, [graphTopology, selectedGraph]);
+
+    const fetchGraphs = async () => {
+        try {
+            const response = await fetch(`${API_BASE}/graphs`);
+            const data = await response.json();
+            setGraphs(data);
+        } catch (err) {
+            console.error('Error fetching graphs:', err);
+        }
+    };
 
     const fetchExecutions = async () => {
         try {
@@ -85,6 +113,37 @@ function App() {
             setPendingTasks(data);
         } catch (err) {
             console.error('Error fetching pending tasks:', err);
+        }
+    };
+
+    const startExecution = async () => {
+        if (!selectedGraph) return;
+
+        try {
+            const stateObj = JSON.parse(initialState);
+            const response = await fetch(`${API_BASE}/executions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    graphId: selectedGraph.graphId,
+                    initialState: stateObj,
+                    metadata: {}
+                })
+            });
+            const data = await response.json();
+            
+            if (data.executionId) {
+                setShowStartDialog(false);
+                setInitialState('{}');
+                setView('executions');
+                setSelectedExecution(data.executionId);
+                fetchExecutions();
+            } else if (data.error) {
+                setError(data.error);
+            }
+        } catch (err) {
+            console.error('Error starting execution:', err);
+            setError('Failed to start execution: ' + err.message);
         }
     };
 
@@ -239,122 +298,202 @@ function App() {
         <div className="app-container">
             <div className="header">
                 <h1>🔷 LangGraph UI</h1>
+                <div className="header-tabs">
+                    <button 
+                        className={`header-tab ${view === 'graphs' ? 'active' : ''}`}
+                        onClick={() => setView('graphs')}
+                    >
+                        Graphs
+                    </button>
+                    <button 
+                        className={`header-tab ${view === 'executions' ? 'active' : ''}`}
+                        onClick={() => setView('executions')}
+                    >
+                        Executions ({executions.length})
+                    </button>
+                </div>
             </div>
             <div className="main-content">
                 <div className="sidebar">
-                    <h2>Executions</h2>
-                    {executions.length === 0 ? (
-                        <div className="empty-state">No executions</div>
+                    {view === 'graphs' ? (
+                        <>
+                            <h2>Available Graphs</h2>
+                            {graphs.length === 0 ? (
+                                <div className="empty-state">No graphs available</div>
+                            ) : (
+                                <ul className="graph-list">
+                                    {graphs.map(graph => (
+                                        <li
+                                            key={graph.graphId}
+                                            className={`graph-item ${selectedGraph?.graphId === graph.graphId ? 'active' : ''}`}
+                                            onClick={() => setSelectedGraph(graph)}
+                                        >
+                                            <div className="graph-name">{graph.name}</div>
+                                            <div className="graph-id">{graph.graphId}</div>
+                                            <div className="graph-stats">
+                                                {graph.nodes.length} nodes, {graph.edges.length} edges
+                                            </div>
+                                            <button 
+                                                className="btn btn-primary btn-small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowStartDialog(true);
+                                                }}
+                                            >
+                                                Start Execution
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
                     ) : (
-                        <ul className="execution-list">
-                            {executions.map(exec => (
-                                <li
-                                    key={exec.executionId}
-                                    className={`execution-item ${selectedExecution === exec.executionId ? 'active' : ''}`}
-                                    onClick={() => setSelectedExecution(exec.executionId)}
-                                >
-                                    <div>
-                                        {exec.executionId.substring(0, 8)}...
-                                        <span className={`status ${exec.status}`}>{exec.status}</span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                                        {exec.graphId}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                        <>
+                            <h2>Executions</h2>
+                            {executions.length === 0 ? (
+                                <div className="empty-state">No executions</div>
+                            ) : (
+                                <ul className="execution-list">
+                                    {executions.map(exec => (
+                                        <li
+                                            key={exec.executionId}
+                                            className={`execution-item ${selectedExecution === exec.executionId ? 'active' : ''}`}
+                                            onClick={() => setSelectedExecution(exec.executionId)}
+                                        >
+                                            <div>
+                                                {exec.executionId.substring(0, 8)}...
+                                                <span className={`status ${exec.status}`}>{exec.status}</span>
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                                                {exec.graphId}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
                     )}
                 </div>
                 <div className="content-area">
-                    {!selectedExecution ? (
+                    {view === 'graphs' && !selectedGraph ? (
+                        <div className="empty-state">Select a graph to view its topology</div>
+                    ) : view === 'executions' && !selectedExecution ? (
                         <div className="empty-state">Select an execution to view details</div>
                     ) : (
                         <>
                             <div className="graph-container">
                                 <div id="cy"></div>
                             </div>
-                            <div className="bottom-panel">
-                                <div className="panel-tabs">
-                                    <button
-                                        className={`panel-tab ${activeTab === 'events' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('events')}
-                                    >
-                                        Events
-                                    </button>
-                                    <button
-                                        className={`panel-tab ${activeTab === 'state' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('state')}
-                                    >
-                                        State
-                                    </button>
-                                    <button
-                                        className={`panel-tab ${activeTab === 'tasks' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('tasks')}
-                                    >
-                                        Tasks ({pendingTasks.length})
-                                    </button>
+                            {view === 'executions' && (
+                                <div className="bottom-panel">
+                                    <div className="panel-tabs">
+                                        <button
+                                            className={`panel-tab ${activeTab === 'events' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('events')}
+                                        >
+                                            Events
+                                        </button>
+                                        <button
+                                            className={`panel-tab ${activeTab === 'state' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('state')}
+                                        >
+                                            State
+                                        </button>
+                                        <button
+                                            className={`panel-tab ${activeTab === 'tasks' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('tasks')}
+                                        >
+                                            Tasks ({pendingTasks.length})
+                                        </button>
+                                    </div>
+                                    <div className="panel-content">
+                                        {activeTab === 'events' && executionDetails && (
+                                            <div className="event-log">
+                                                {executionDetails.events && executionDetails.events.length === 0 ? (
+                                                    <div>No events yet</div>
+                                                ) : (
+                                                    executionDetails.events.map((event, idx) => (
+                                                        <div key={idx} className="event-item">
+                                                            <span className="timestamp">
+                                                                {new Date(event.timestamp).toLocaleTimeString()}
+                                                            </span>
+                                                            <span className="event-type">{event.eventType}</span>
+                                                            {event.nodeId && <span>Node: {event.nodeId}</span>}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                        {activeTab === 'state' && executionDetails && (
+                                            <div className="state-viewer">
+                                                <pre>{JSON.stringify(executionDetails.state, null, 2)}</pre>
+                                            </div>
+                                        )}
+                                        {activeTab === 'tasks' && (
+                                            <div>
+                                                {pendingTasks.length === 0 ? (
+                                                    <div>No pending tasks</div>
+                                                ) : (
+                                                    <ul className="task-list">
+                                                        {pendingTasks.map(task => (
+                                                            <li key={task.taskId} className="task-item">
+                                                                <div className="task-prompt">{task.prompt}</div>
+                                                                <div style={{ fontSize: '12px', color: '#666' }}>
+                                                                    Type: {task.type} | Created: {new Date(task.createdAt).toLocaleString()}
+                                                                </div>
+                                                                <div className="task-actions">
+                                                                    <button
+                                                                        className="btn btn-primary"
+                                                                        onClick={() => approveTask(task.taskId)}
+                                                                    >
+                                                                        Approve
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-secondary"
+                                                                        onClick={() => rejectTask(task.taskId)}
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="panel-content">
-                                    {activeTab === 'events' && executionDetails && (
-                                        <div className="event-log">
-                                            {executionDetails.events && executionDetails.events.length === 0 ? (
-                                                <div>No events yet</div>
-                                            ) : (
-                                                executionDetails.events.map((event, idx) => (
-                                                    <div key={idx} className="event-item">
-                                                        <span className="timestamp">
-                                                            {new Date(event.timestamp).toLocaleTimeString()}
-                                                        </span>
-                                                        <span className="event-type">{event.eventType}</span>
-                                                        {event.nodeId && <span>Node: {event.nodeId}</span>}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    )}
-                                    {activeTab === 'state' && executionDetails && (
-                                        <div className="state-viewer">
-                                            <pre>{JSON.stringify(executionDetails.state, null, 2)}</pre>
-                                        </div>
-                                    )}
-                                    {activeTab === 'tasks' && (
-                                        <div>
-                                            {pendingTasks.length === 0 ? (
-                                                <div>No pending tasks</div>
-                                            ) : (
-                                                <ul className="task-list">
-                                                    {pendingTasks.map(task => (
-                                                        <li key={task.taskId} className="task-item">
-                                                            <div className="task-prompt">{task.prompt}</div>
-                                                            <div style={{ fontSize: '12px', color: '#666' }}>
-                                                                Type: {task.type} | Created: {new Date(task.createdAt).toLocaleString()}
-                                                            </div>
-                                                            <div className="task-actions">
-                                                                <button
-                                                                    className="btn btn-primary"
-                                                                    onClick={() => approveTask(task.taskId)}
-                                                                >
-                                                                    Approve
-                                                                </button>
-                                                                <button
-                                                                    className="btn btn-secondary"
-                                                                    onClick={() => rejectTask(task.taskId)}
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            )}
                         </>
                     )}
                 </div>
             </div>
+            {showStartDialog && selectedGraph && (
+                <div className="modal-overlay" onClick={() => setShowStartDialog(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h2>Start Execution</h2>
+                        <p>Graph: <strong>{selectedGraph.name}</strong></p>
+                        <div className="form-group">
+                            <label>Initial State (JSON):</label>
+                            <textarea
+                                className="form-control"
+                                rows="10"
+                                value={initialState}
+                                onChange={(e) => setInitialState(e.target.value)}
+                                placeholder='{"key": "value"}'
+                            />
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn btn-primary" onClick={startExecution}>
+                                Start
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => setShowStartDialog(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {error && (
                 <div className="error" onClick={() => setError(null)}>
                     {error}

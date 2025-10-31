@@ -87,19 +87,30 @@ http://localhost:8080/index.html
 
 ## Sample Graphs
 
-The application includes three sample graphs that are automatically registered on startup:
+The application includes four sample graphs that are automatically registered on startup. Each graph is designed with:
+- **Start Node**: Initializes the workflow and validates/cleans input data
+- **End Node**: Finalizes the workflow and formats output data  
+- **10-Second Execution Delay**: Each node simulates realistic processing time for better visualization
 
-1. **Simple Sequential Workflow** (`simple-sequential`)
-   - Three-step linear workflow
-   - Demonstrates basic node execution
+### 1. Simple Sequential Workflow (`simple-sequential`)
+- **Flow**: Start → Validate Input → Process Data → Enrich Results → Format Output
+- **Purpose**: Demonstrates basic sequential execution with data validation
+- **Example Input**: `{"input": "test data"}`
 
-2. **Conditional Workflow** (`conditional-workflow`)
-   - Branching logic based on state values
-   - Shows conditional edges and path selection
+### 2. Conditional Branching Workflow (`conditional-workflow`)
+- **Flow**: Start → Validate → Check Priority → (High/Normal/Low Path) → Merge → Format Output
+- **Purpose**: Shows conditional routing based on priority values
+- **Example Input**: `{"value": 85}` (routes to high priority if >80, normal if >40, low otherwise)
 
-3. **Human Approval Workflow** (`human-approval`)
-   - Requires human approval to proceed
-   - Demonstrates human-in-the-loop patterns
+### 3. Human Approval Workflow (`human-approval`)
+- **Flow**: Start → Prepare Request → Approval (Human) → (Approved/Rejected) → Finalize
+- **Purpose**: Demonstrates human-in-the-loop patterns with approval gates
+- **Example Input**: `{"requestData": "approval request"}`
+
+### 4. Data Processing Pipeline (`data-processing`)
+- **Flow**: Initialize → Extract Data → Transform Data → Validate Quality → Load to Target → Finalize
+- **Purpose**: ETL pipeline demonstrating data processing patterns
+- **Example Input**: `{}`
 
 ## Using the UI - Complete Workflow
 
@@ -124,15 +135,17 @@ The application includes three sample graphs that are automatically registered o
 ### 3. Monitor Execution
 1. The execution appears in the **"Executions"** tab
 2. Select it to view real-time details:
-   - **Graph Visualization**: Node colors indicate status
-     - Blue: Pending
-     - Yellow: Running (with pulsing animation)
-     - Green: Completed
-     - Red: Failed
+   - **Graph Visualization**: Live visual feedback
+     - Each node executes for 10 seconds (simulated processing time)
+     - Nodes flow left-to-right from Start (cyan) to End (pink)
+     - Running node: Prominent pulsing white border with yellow glow
+     - Completed nodes: Green glow effect
+     - Direct edges: Solid teal lines
+     - Conditional edges: Dashed red lines with "?" marker
    - **Info Bar**: Shows execution status, current node, and start time
-   - **Events Tab**: Timeline of execution events
+   - **Events Tab**: Timeline of execution events with timestamps
    - **State Tab**: Current execution state as JSON
-   - **Tasks Tab**: Pending human approval tasks
+   - **Tasks Tab**: Pending human approval tasks (for approval workflows)
 
 ### 3.1 Interactive Graph Features
 - **Running Node Animation**: Nodes currently executing have a pulsing border animation
@@ -246,20 +259,40 @@ logging:
 ## Graph Visualization
 
 The graph visualization uses Cytoscape.js with the following features:
-- **Node Colors** indicate status:
-  - Blue: Pending
-  - Yellow: Running (with animated pulsing border)
-  - Green: Completed
-  - Red: Failed
-  - Gray: Skipped
-- **Interactive Elements**:
-  - Click on any node to view its details and current state
-  - Click on any edge to view its type, metadata, and current state
-  - Running nodes have special animation effects (border pulsing)
-- **Pan/Zoom** for navigation
-- **Breadth-first layout** for optimal viewing
-- **Automatic fitting** on load
-- **Real-time Updates**: Node status updates automatically via WebSocket
+
+### Node Design
+- **Left-to-Right Layout**: Graphs flow from left to right, starting with the Start node
+- **Unique Colors**: Each node type has a distinct color for easy identification:
+  - **Start Node**: Cyan (#00BCD4) - Always the leftmost node
+  - **End Node**: Pink (#E91E63) - Always the rightmost node
+  - **Validate**: Purple (#9C27B0)
+  - **Process**: Indigo (#3F51B5)
+  - **Check/Approval**: Orange (#FF9800/#FF5722)
+  - **Extract/Transform/Load**: Blue Grey, Deep Purple, Amber
+  - And many more unique colors for different node types
+- **Status Indicators**: Visual effects show execution state:
+  - **Running**: Thick pulsing white border with glowing yellow shadow (10-second execution per node)
+  - **Completed**: Green glow shadow
+  - **Failed**: Red glow shadow
+  - **Pending**: Base color with standard shadow
+
+### Edge Design
+- **Direct Edges** (Solid Teal Line): Normal sequential flow connections
+- **Conditional Edges** (Dashed Red Line with ?): Decision points that evaluate conditions
+- **Arrow Indicators**: Large arrow heads show flow direction
+
+### Interactive Features
+- **Click on Nodes**: View detailed information including:
+  - Node ID, name, and current status
+  - Node metadata
+  - Current execution state
+- **Click on Edges**: View edge information including:
+  - Edge type (Direct or Conditional)
+  - Source and target nodes
+  - Edge metadata
+  - Current execution state
+- **Pan/Zoom**: Navigate large graphs easily
+- **Real-time Updates**: WebSocket-based live status updates during execution
 
 ## Execution History
 

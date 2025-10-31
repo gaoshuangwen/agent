@@ -215,6 +215,38 @@ function App() {
         wsRef.current = ws;
     };
 
+    const getNodeColor = (nodeId, status) => {
+        // Special colors for start and end nodes
+        if (nodeId === 'start') return '#00BCD4'; // Cyan for start
+        if (nodeId === 'end') return '#E91E63'; // Pink for end
+        
+        // Status-based colors take precedence during execution
+        if (status === 'RUNNING') return '#ffc107'; // Yellow for running
+        if (status === 'COMPLETED') return '#4caf50'; // Green for completed
+        if (status === 'FAILED') return '#f44336'; // Red for failed
+        
+        // Different colors for different node types when pending
+        const nodeColors = {
+            'validate': '#9C27B0',  // Purple
+            'check': '#FF9800',     // Orange
+            'process': '#3F51B5',   // Indigo
+            'enrich': '#009688',    // Teal
+            'prepare': '#795548',   // Brown
+            'approval': '#FF5722',  // Deep Orange
+            'approved': '#8BC34A',  // Light Green
+            'rejected': '#F44336',  // Red
+            'extract': '#607D8B',   // Blue Grey
+            'transform': '#673AB7', // Deep Purple
+            'load': '#FFC107',      // Amber
+            'merge': '#CDDC39',     // Lime
+            'high-priority': '#D32F2F', // Dark Red
+            'normal-priority': '#1976D2', // Dark Blue
+            'low-priority': '#388E3C'  // Dark Green
+        };
+        
+        return nodeColors[nodeId] || '#2196f3'; // Default blue
+    };
+
     const renderGraph = (topology, nodeStatuses) => {
         if (!topology || !topology.nodes) return;
 
@@ -222,24 +254,29 @@ function App() {
 
         topology.nodes.forEach(node => {
             const status = nodeStatuses ? nodeStatuses[node.id] : 'PENDING';
+            const baseColor = getNodeColor(node.id, status);
+            
             elements.push({
                 data: {
                     id: node.id,
                     label: node.name,
                     status: status,
-                    nodeData: node
+                    nodeData: node,
+                    baseColor: baseColor
                 }
             });
         });
 
         topology.edges.forEach(edge => {
+            const isConditional = edge.type.includes('Conditional');
             elements.push({
                 data: {
                     id: edge.id,
                     source: edge.source,
                     target: edge.target,
                     label: edge.type,
-                    edgeData: edge
+                    edgeData: edge,
+                    isConditional: isConditional
                 }
             });
         });
@@ -258,33 +295,43 @@ function App() {
                         'label': 'data(label)',
                         'text-valign': 'center',
                         'text-halign': 'center',
-                        'background-color': function(ele) {
-                            const status = ele.data('status');
-                            switch(status) {
-                                case 'RUNNING': return '#ffc107';
-                                case 'COMPLETED': return '#4caf50';
-                                case 'FAILED': return '#f44336';
-                                case 'PENDING': return '#2196f3';
-                                default: return '#9e9e9e';
-                            }
-                        },
+                        'text-wrap': 'wrap',
+                        'text-max-width': '70px',
+                        'background-color': 'data(baseColor)',
                         'color': '#fff',
-                        'font-size': '12px',
+                        'font-size': '11px',
                         'font-weight': 'bold',
-                        'width': '80px',
-                        'height': '80px',
+                        'width': '90px',
+                        'height': '90px',
                         'border-width': '3px',
                         'border-color': '#fff',
-                        'transition-property': 'background-color, border-color, border-width',
-                        'transition-duration': '0.3s'
+                        'text-outline-width': 2,
+                        'text-outline-color': 'data(baseColor)',
+                        'transition-property': 'background-color, border-color, border-width, box-shadow',
+                        'transition-duration': '0.3s',
+                        'box-shadow': '0 2px 4px rgba(0,0,0,0.2)'
                     }
                 },
                 {
                     selector: 'node[status="RUNNING"]',
                     style: {
-                        'border-width': '6px',
-                        'border-color': '#ff6f00',
-                        'box-shadow': '0 0 20px #ffc107'
+                        'border-width': '8px',
+                        'border-color': '#fff',
+                        'box-shadow': '0 0 30px rgba(255, 193, 7, 0.8), 0 0 60px rgba(255, 193, 7, 0.4)'
+                    }
+                },
+                {
+                    selector: 'node[status="COMPLETED"]',
+                    style: {
+                        'border-color': '#fff',
+                        'box-shadow': '0 0 15px rgba(76, 175, 80, 0.5)'
+                    }
+                },
+                {
+                    selector: 'node[status="FAILED"]',
+                    style: {
+                        'border-color': '#fff',
+                        'box-shadow': '0 0 15px rgba(244, 67, 54, 0.5)'
                     }
                 },
                 {
@@ -297,15 +344,26 @@ function App() {
                 {
                     selector: 'edge',
                     style: {
-                        'width': 2,
-                        'line-color': '#999',
-                        'target-arrow-color': '#999',
+                        'width': 3,
+                        'line-color': function(ele) {
+                            return ele.data('isConditional') ? '#FF6B6B' : '#4ECDC4';
+                        },
+                        'target-arrow-color': function(ele) {
+                            return ele.data('isConditional') ? '#FF6B6B' : '#4ECDC4';
+                        },
                         'target-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
-                        'label': 'data(label)',
-                        'font-size': '10px',
+                        'label': function(ele) {
+                            return ele.data('isConditional') ? '?' : '';
+                        },
+                        'font-size': '14px',
+                        'font-weight': 'bold',
                         'text-rotation': 'autorotate',
-                        'text-margin-y': -10
+                        'text-margin-y': -12,
+                        'arrow-scale': 1.5,
+                        'line-style': function(ele) {
+                            return ele.data('isConditional') ? 'dashed' : 'solid';
+                        }
                     }
                 },
                 {
@@ -313,15 +371,22 @@ function App() {
                     style: {
                         'line-color': '#1976d2',
                         'target-arrow-color': '#1976d2',
-                        'width': 3
+                        'width': 4
                     }
                 }
             ],
             layout: {
                 name: 'breadthfirst',
                 directed: true,
-                padding: 50,
-                spacingFactor: 1.5
+                roots: topology.entryPoint ? '[id = "' + topology.entryPoint + '"]' : undefined,
+                padding: 60,
+                spacingFactor: 1.8,
+                avoidOverlap: true,
+                nodeDimensionsIncludeLabels: true,
+                animate: false,
+                fit: true,
+                // Force left-to-right layout
+                rankDir: 'LR'
             }
         });
 

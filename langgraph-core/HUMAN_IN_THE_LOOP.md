@@ -309,13 +309,13 @@ public class HumanTaskController {
     }
     
     @GetMapping("/{taskId}")
-    public HumanTask getTask(@PathVariable String taskId) {
+    public HumanTask getTask(@PathVariable("taskId") String taskId) {
         return taskManager.getTask(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
     }
     
     @PostMapping("/{taskId}/complete")
-    public void completeTask(@PathVariable String taskId, 
+    public void completeTask(@PathVariable("taskId") String taskId, 
                             @RequestBody Map<String, Object> response) {
         taskManager.completeTask(taskId, response);
     }

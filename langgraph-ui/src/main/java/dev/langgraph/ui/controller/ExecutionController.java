@@ -37,14 +37,14 @@ public class ExecutionController {
     }
 
     @GetMapping("/{executionId}")
-    public ResponseEntity<ExecutionDTO> getExecution(@PathVariable String executionId) {
+    public ResponseEntity<ExecutionDTO> getExecution(@PathVariable("executionId") String executionId) {
         return executionService.getExecution(executionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{executionId}/cancel")
-    public ResponseEntity<Void> cancelExecution(@PathVariable String executionId) {
+    public ResponseEntity<Void> cancelExecution(@PathVariable("executionId") String executionId) {
         executionService.cancelExecution(executionId);
         return ResponseEntity.ok().build();
     }

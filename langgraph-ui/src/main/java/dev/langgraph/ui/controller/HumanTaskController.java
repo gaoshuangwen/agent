@@ -25,12 +25,12 @@ public class HumanTaskController {
     }
 
     @GetMapping("/execution/{executionId}")
-    public ResponseEntity<List<HumanTaskDTO>> getTasksForExecution(@PathVariable String executionId) {
+    public ResponseEntity<List<HumanTaskDTO>> getTasksForExecution(@PathVariable("executionId") String executionId) {
         return ResponseEntity.ok(humanTaskService.getTasksForExecution(executionId));
     }
 
     @GetMapping("/{taskId}")
-    public ResponseEntity<HumanTaskDTO> getTask(@PathVariable String taskId) {
+    public ResponseEntity<HumanTaskDTO> getTask(@PathVariable("taskId") String taskId) {
         return humanTaskService.getTask(taskId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -38,20 +38,20 @@ public class HumanTaskController {
 
     @PostMapping("/{taskId}/respond")
     public ResponseEntity<Void> respondToTask(
-            @PathVariable String taskId,
+            @PathVariable("taskId") String taskId,
             @RequestBody HumanTaskResponseRequest request) {
         humanTaskService.respondToTask(taskId, request);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{taskId}/approve")
-    public ResponseEntity<Void> approveTask(@PathVariable String taskId) {
+    public ResponseEntity<Void> approveTask(@PathVariable("taskId") String taskId) {
         humanTaskService.approveTask(taskId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{taskId}/reject")
-    public ResponseEntity<Void> rejectTask(@PathVariable String taskId) {
+    public ResponseEntity<Void> rejectTask(@PathVariable("taskId") String taskId) {
         humanTaskService.rejectTask(taskId);
         return ResponseEntity.ok().build();
     }

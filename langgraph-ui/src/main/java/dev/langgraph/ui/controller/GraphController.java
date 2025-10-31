@@ -24,7 +24,8 @@ public class GraphController {
     }
 
     @GetMapping("/{graphId}")
-    public ResponseEntity<GraphTopologyDTO> getGraphTopology(@PathVariable String graphId) {
+    public ResponseEntity<GraphTopologyDTO> getGraphTopology(@PathVariable("graphId")
+                                                                 String graphId) {
         return graphService.getGraphTopology(graphId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

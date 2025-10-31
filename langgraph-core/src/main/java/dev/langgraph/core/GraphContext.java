@@ -1,6 +1,5 @@
 package dev.langgraph.core;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -13,7 +12,7 @@ public final class GraphContext {
 
     private GraphContext(GraphId graphId, Map<String, Object> attributes) {
         this.graphId = Objects.requireNonNull(graphId, "GraphId cannot be null");
-        this.attributes = Collections.unmodifiableMap(new HashMap<>(attributes));
+        this.attributes = Map.copyOf(attributes);
     }
 
     public static GraphContext of(GraphId graphId) {
